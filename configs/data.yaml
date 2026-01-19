@@ -1,0 +1,53 @@
+# configs/data.yaml
+
+output_dir: "data/processed/step1_corpus"
+seed: 1337
+
+# How many total examples to write (across all sources).
+# Keep small for laptop. You can scale later.
+max_examples_total: 50000
+
+# Sharding controls
+shard_size: 5000
+
+# Filtering controls
+filters:
+  min_chars: 200
+  max_chars: 20000
+  max_nonalpha_ratio: 0.45
+  max_repeated_line_ratio: 0.35
+
+# Dedupe controls (fast + laptop-friendly)
+dedupe:
+  exact: true
+  simhash:
+    enabled: true
+    # Lower threshold = stricter near-duplicate filtering.
+    # 3–6 is common for short/medium docs.
+    hamming_threshold: 4
+
+# Mixture / balancing
+# We’ll stream from Hugging Face datasets to avoid manual crawling.
+# You can add your own local text files later.
+sources:
+  - name: "wikitext"
+    kind: "hf"
+    dataset: "Salesforce/wikitext"
+    subset: "wikitext-103-raw-v1"
+    split: "train"
+    text_field: "text"
+    weight: 0.6
+
+  - name: "ag_news"
+    kind: "hf"
+    dataset: "SetFit/ag_news"
+    subset: null
+    split: "train"
+    text_field: "text"
+    weight: 0.4
+
+# Optional: additional local sources (folder of .txt/.md)
+# local_sources:
+#   - name: "my_notes"
+#     path: "data/raw/my_notes"
+#     weight: 0.10
