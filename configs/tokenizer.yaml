@@ -1,0 +1,22 @@
+# configs/tokenizer.yaml
+
+seed: 1337
+
+input_dir: "data/processed/step1_corpus"
+output_dir: "artifacts/tokenizer/step2_bpe"
+
+vocab_size: 32000
+min_frequency: 2
+limit_alphabet: 1000
+
+special_tokens:
+  - "<|pad|>"
+  - "<|bos|>"
+  - "<|eos|>"
+  - "<|unk|>"
+
+# Encoding corpus (optional step, but recommended before Step 3)
+encode:
+  enabled: true
+  output_dir: "data/processed/step2_tokens"
+  shard_prefix: "tok"

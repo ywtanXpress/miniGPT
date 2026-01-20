@@ -13,6 +13,7 @@ dependencies = [
   "tqdm>=4.66.0",
   "datasets>=2.20.0",
   "regex>=2024.5.15",
+  "tokenizers>=0.15.2",
 ]
 
 [project.optional-dependencies]
