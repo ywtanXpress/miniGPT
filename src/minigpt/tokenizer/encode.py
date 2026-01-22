@@ -44,8 +44,8 @@ def encode_corpus(config_path: str) -> None:
     ensure_dir(out_dir)
 
     for si, fp in enumerate(files):
-        bin_path = Path(out_dir) / ("{0}_{1:05d}.bin".format(shard_prefix, si))
-        idx_path = Path(out_dir) / ("{0}_{1:05d}.idx.json".format(shard_prefix, si))
+        bin_path = Path(out_dir) / f"{shard_prefix}_{si:05d}.bin"
+        idx_path = Path(out_dir) / f"{shard_prefix}_{si:05d}.idx.json"
 
         token_ids = array("I")
         doc_starts = []
