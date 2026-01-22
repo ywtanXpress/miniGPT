@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import yaml
-import torch
 import numpy as np
-
+import torch
 from tokenizers import Tokenizer
 
 from minigpt.common.logging import get_logger
@@ -15,7 +15,7 @@ from minigpt.common.paths import ensure_dir
 from minigpt.model.gpt import GPT, GPTConfig
 from minigpt.train.data import TokenShardDataset
 from minigpt.train.optim import get_lr, set_optimizer_lr
-from minigpt.train.ckpt import save_checkpoint
+from minigpt.train.ckpt import save_checkpoint, load_checkpoint, find_latest_checkpoint
 
 log = get_logger("minigpt.train.pretrain")
 
@@ -37,7 +37,7 @@ def _estimate_loss(model: GPT, ds: TokenShardDataset, device: torch.device, batc
     return sum(losses) / float(len(losses))
 
 
-def pretrain(config_path: str) -> None:
+def pretrain(config_path: str, resume: bool = False, ckpt_path: Optional[str] = None) -> None:
     cfg = _load_cfg(config_path)
 
     seed = int(cfg.get("seed", 1337))
@@ -87,7 +87,6 @@ def pretrain(config_path: str) -> None:
         use_amp = False
         amp_dtype = torch.float32
 
-    # tokenizer -> vocab size
     tok_path = Path(tok_dir) / "tokenizer.json"
     tok = Tokenizer.from_file(str(tok_path))
     vocab_size = int(tok.get_vocab_size())
@@ -105,9 +104,26 @@ def pretrain(config_path: str) -> None:
     model = GPT(gcfg).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=base_lr, weight_decay=weight_decay, betas=(0.9, 0.95))
 
-    ds = TokenShardDataset(tokens_dir=tokens_dir, shard_prefix=shard_prefix, block_size=block_size, val_num_shards=val_num_shards)
+    ds = TokenShardDataset(
+        tokens_dir=tokens_dir,
+        shard_prefix=shard_prefix,
+        block_size=block_size,
+        val_num_shards=val_num_shards,
+    )
 
     scaler = torch.cuda.amp.GradScaler(enabled=(use_amp and amp_dtype == torch.float16))
+
+    start_step = 0
+
+    if resume or ckpt_path is not None:
+        if ckpt_path is None:
+            ckpt_path = find_latest_checkpoint(out_dir)
+
+        log.info("Resuming from checkpoint: %s", ckpt_path)
+        ckpt = load_checkpoint(ckpt_path, model, opt=opt)
+        start_step = int(ckpt.get("step", 0))
+
+        log.info("Checkpoint step=%d (will continue from step %d)", start_step, start_step + 1)
 
     log.info("Device=%s use_amp=%s amp_dtype=%s", str(device), str(use_amp), str(amp_dtype))
     log.info("Model: vocab=%d block=%d layers=%d heads=%d embd=%d", vocab_size, block_size, gcfg.n_layer, gcfg.n_head, gcfg.n_embd)
@@ -115,13 +131,13 @@ def pretrain(config_path: str) -> None:
     model.train()
     running = 0.0
 
-    for step in range(max_steps):
+    for step in range(start_step, max_steps):
         lr = get_lr(step, base_lr, warmup_steps, max_steps)
         set_optimizer_lr(opt, lr)
 
         opt.zero_grad(set_to_none=True)
 
-        for micro in range(grad_accum):
+        for _ in range(grad_accum):
             x, y = ds.get_batch("train", batch_size=batch_size, device=device)
 
             if use_amp:

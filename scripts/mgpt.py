@@ -41,8 +41,12 @@ def tok_encode(config: str = typer.Option(..., help="Path to YAML config")):
 
 
 @train_app.command("pretrain")
-def train_pretrain(config: str = typer.Option(..., help="Path to YAML config")):
-    pretrain(config_path=config)
+def train_pretrain(
+    config: str = typer.Option(..., help="Path to YAML config"),
+    resume: bool = typer.Option(False, help="Resume from latest checkpoint in out_dir"),
+    ckpt: str = typer.Option(None, help="Checkpoint path to resume from (overrides --resume)"),
+):
+    pretrain(config_path=config, resume=bool(resume), ckpt_path=ckpt)
 
 
 @train_app.command("sample")

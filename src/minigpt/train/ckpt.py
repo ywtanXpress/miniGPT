@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import torch
 
@@ -23,9 +23,17 @@ def save_checkpoint(out_dir: str, step: int, model: torch.nn.Module, opt: torch.
     return str(path)
 
 
-def load_checkpoint(path: str, model: torch.nn.Module, opt: torch.optim.Optimizer | None = None) -> Dict[str, Any]:
+def load_checkpoint(path: str, model: torch.nn.Module, opt: Optional[torch.optim.Optimizer] = None) -> Dict[str, Any]:
     ckpt = torch.load(path, map_location="cpu")
     model.load_state_dict(ckpt["model"])
     if opt is not None and "optimizer" in ckpt:
         opt.load_state_dict(ckpt["optimizer"])
     return ckpt
+
+
+def find_latest_checkpoint(out_dir: str) -> str:
+    p = Path(out_dir)
+    ckpts = sorted(p.glob("ckpt_*.pt"))
+    if not ckpts:
+        raise RuntimeError(f"No checkpoints found in {out_dir}")
+    return str(ckpts[-1])

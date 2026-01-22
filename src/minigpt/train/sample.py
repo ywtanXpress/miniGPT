@@ -11,7 +11,7 @@ from tokenizers import Tokenizer
 
 from minigpt.common.logging import get_logger
 from minigpt.model.gpt import GPT, GPTConfig
-from minigpt.train.ckpt import load_checkpoint
+from minigpt.train.ckpt import load_checkpoint, find_latest_checkpoint
 
 log = get_logger("minigpt.train.sample")
 
@@ -35,7 +35,6 @@ def _select_amp_dtype(dtype_cfg: str, device: torch.device):
     if dtype_cfg == "auto":
         if device.type != "cuda":
             return False, torch.float32
-        # Prefer bf16 if supported; else fp16
         if torch.cuda.is_bf16_supported():
             return True, torch.bfloat16
         return True, torch.float16
@@ -44,14 +43,6 @@ def _select_amp_dtype(dtype_cfg: str, device: torch.device):
         return True, torch.bfloat16
 
     return False, torch.float32
-
-
-def find_latest_checkpoint(out_dir: str) -> str:
-    p = Path(out_dir)
-    ckpts = sorted(p.glob("ckpt_*.pt"))
-    if not ckpts:
-        raise RuntimeError(f"No checkpoints found in {out_dir}")
-    return str(ckpts[-1])
 
 
 @torch.no_grad()
@@ -106,7 +97,6 @@ def sample_text(
     if not ids:
         raise RuntimeError("Prompt encoded to 0 tokens; provide a different prompt")
 
-    # keep last block_size tokens if prompt is long
     if len(ids) > block_size:
         ids = ids[-block_size:]
 

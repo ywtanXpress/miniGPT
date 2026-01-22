@@ -25,6 +25,9 @@ encode:
 train:
 	python scripts/mgpt.py train pretrain --config configs/train.yaml
 
+train_resume:
+	python scripts/mgpt.py train pretrain --config configs/train.yaml --resume
+
 PROMPT ?= Once upon a time
 
 sample:
