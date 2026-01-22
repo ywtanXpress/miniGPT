@@ -1,0 +1,122 @@
+# src/minigpt/train/sample.py
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
+
+import yaml
+import torch
+from tokenizers import Tokenizer
+
+from minigpt.common.logging import get_logger
+from minigpt.model.gpt import GPT, GPTConfig
+from minigpt.train.ckpt import load_checkpoint
+
+log = get_logger("minigpt.train.sample")
+
+
+def _load_cfg(path: str) -> dict:
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def _select_device(device_cfg: str) -> torch.device:
+    if device_cfg == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("device=cuda requested but CUDA is not available")
+
+    if device_cfg == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    return torch.device(device_cfg)
+
+
+def _select_amp_dtype(dtype_cfg: str, device: torch.device):
+    if dtype_cfg == "auto":
+        if device.type != "cuda":
+            return False, torch.float32
+        # Prefer bf16 if supported; else fp16
+        if torch.cuda.is_bf16_supported():
+            return True, torch.bfloat16
+        return True, torch.float16
+
+    if dtype_cfg == "bf16":
+        return True, torch.bfloat16
+
+    return False, torch.float32
+
+
+def find_latest_checkpoint(out_dir: str) -> str:
+    p = Path(out_dir)
+    ckpts = sorted(p.glob("ckpt_*.pt"))
+    if not ckpts:
+        raise RuntimeError(f"No checkpoints found in {out_dir}")
+    return str(ckpts[-1])
+
+
+@torch.no_grad()
+def sample_text(
+    config_path: str,
+    prompt: str,
+    ckpt_path: Optional[str] = None,
+    max_new_tokens: int = 200,
+    temperature: float = 1.0,
+    top_k: Optional[int] = 50,
+) -> str:
+    cfg = _load_cfg(config_path)
+
+    paths = cfg["paths"]
+    tok_dir = paths["tokenizer_dir"]
+    out_dir = paths["out_dir"]
+
+    train_cfg = cfg.get("train", {})
+    device_cfg = str(train_cfg.get("device", "auto"))
+    dtype_cfg = str(train_cfg.get("dtype", "auto"))
+
+    device = _select_device(device_cfg)
+    use_amp, amp_dtype = _select_amp_dtype(dtype_cfg, device)
+
+    tok_path = Path(tok_dir) / "tokenizer.json"
+    tok = Tokenizer.from_file(str(tok_path))
+    vocab_size = int(tok.get_vocab_size())
+
+    data_cfg = cfg["data"]
+    block_size = int(data_cfg["block_size"])
+
+    model_cfg = cfg["model"]
+    gcfg = GPTConfig(
+        vocab_size=vocab_size,
+        block_size=block_size,
+        n_layer=int(model_cfg["n_layer"]),
+        n_head=int(model_cfg["n_head"]),
+        n_embd=int(model_cfg["n_embd"]),
+        dropout=float(model_cfg.get("dropout", 0.0)),
+    )
+
+    model = GPT(gcfg).to(device)
+    model.eval()
+
+    if ckpt_path is None:
+        ckpt_path = find_latest_checkpoint(out_dir)
+
+    log.info("Loading checkpoint: %s", ckpt_path)
+    load_checkpoint(ckpt_path, model, opt=None)
+
+    ids = tok.encode(prompt).ids
+    if not ids:
+        raise RuntimeError("Prompt encoded to 0 tokens; provide a different prompt")
+
+    # keep last block_size tokens if prompt is long
+    if len(ids) > block_size:
+        ids = ids[-block_size:]
+
+    x = torch.tensor(ids, dtype=torch.long, device=device).unsqueeze(0)
+
+    if use_amp and device.type == "cuda":
+        with torch.autocast(device_type="cuda", dtype=amp_dtype):
+            out = model.generate(x, max_new_tokens=max_new_tokens, temperature=temperature, top_k=top_k)
+    else:
+        out = model.generate(x, max_new_tokens=max_new_tokens, temperature=temperature, top_k=top_k)
+
+    out_ids = out[0].tolist()
+    return tok.decode(out_ids)

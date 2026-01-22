@@ -21,3 +21,11 @@ tok:
 
 encode:
 	python scripts/mgpt.py tokenizer encode --config configs/tokenizer.yaml
+
+train:
+	python scripts/mgpt.py train pretrain --config configs/train.yaml
+
+PROMPT ?= Once upon a time
+
+sample:
+	python scripts/mgpt.py train sample --config configs/train.yaml --prompt "$(PROMPT)"
