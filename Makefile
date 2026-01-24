@@ -32,3 +32,12 @@ PROMPT ?= Once upon a time
 
 sample:
 	python scripts/mgpt.py train sample --config configs/train.yaml --prompt "$(PROMPT)"
+
+sft_data:
+	python scripts/mgpt.py sft build --config configs/sft.yaml
+
+sft_train:
+	python scripts/mgpt.py sft train --config configs/sft.yaml
+
+sft_resume:
+	python scripts/mgpt.py sft train --config configs/sft.yaml --resume
