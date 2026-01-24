@@ -1,0 +1,59 @@
+# configs/sft.yaml
+
+seed: 1337
+
+paths:
+  tokenizer_dir: "artifacts/tokenizer/step2_bpe"
+  out_dir: "artifacts/sft/step4_sft"
+  sft_tokens_dir: "data/processed/step4_sft_tokens"
+  init_ckpt: "artifacts/pretrain/step3_gpt"
+
+data:
+  # where encoded sft shards go
+  shard_prefix: "sft"
+  shard_size: 5000
+  max_examples_total: 50000
+  val_ratio: 0.02
+
+  # prompt formatting (simple, stable, readable)
+  template:
+    system: ""   # keep empty for now
+    user_prefix: "### Instruction:\n"
+    assistant_prefix: "\n\n### Response:\n"
+    end: "\n"
+
+  # source: HF dataset with instruction + output fields
+  source:
+    kind: "hf"
+    dataset: "tatsu-lab/alpaca"
+    subset: null
+    split: "train"
+    instruction_field: "instruction"
+    input_field: "input"
+    output_field: "output"
+
+tokenization:
+  block_size: 256
+
+model:
+  n_layer: 4
+  n_head: 4
+  n_embd: 256
+  dropout: 0.1
+
+train:
+  max_steps: 2000
+  grad_accum: 4
+  batch_size: 16
+  lr: 2.0e-4
+  weight_decay: 0.1
+  warmup_steps: 100
+  max_grad_norm: 1.0
+
+  eval_interval: 200
+  eval_batches: 50
+  save_interval: 500
+  log_interval: 20
+
+  device: "auto"
+  dtype: "auto"

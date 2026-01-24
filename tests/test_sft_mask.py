@@ -1,0 +1,64 @@
+# tests/test_sft_mask.py
+
+import json
+from pathlib import Path
+
+import numpy as np
+import torch
+
+from minigpt.sft.data import SFTTokenDataset
+
+
+def _write_sft_shard(tokens_dir: Path, split: str, shard_prefix: str, shard_id: int, tokens: np.ndarray, response_start: int) -> None:
+    tokens_dir.mkdir(parents=True, exist_ok=True)
+
+    # Must match SFTTokenDataset._load_shards():
+    bin_path = tokens_dir / ("{0}_{1}_{2:05d}.bin".format(split, shard_prefix, shard_id))
+    idx_path = tokens_dir / ("{0}_{1}_{2:05d}.idx.json".format(split, shard_prefix, shard_id))
+
+    # IMPORTANT: write as int32 so file is not smaller than loader's expected dtype
+    # (prevents mmap length > file size if loader uses int32/uint32).
+    tokens = np.asarray(tokens, dtype=np.int32)
+    tokens.tofile(str(bin_path))
+
+    idx = {
+        "num_tokens": int(tokens.shape[0]),
+        "doc_starts": [0],
+        "response_starts": [int(response_start)],
+    }
+    with open(idx_path, "w", encoding="utf-8") as f:
+        json.dump(idx, f)
+
+
+def test_loss_mask_boundary(tmp_path: Path):
+    block_size = 8
+
+    # Need at least block_size + 1 tokens so y has length block_size.
+    tokens = np.arange(10, 10 + (block_size + 1), dtype=np.int32)  # 9 tokens
+    response_start = 5  # global token index in doc
+
+    tokens_dir = tmp_path / "sft_tokens"
+    shard_prefix = "sft"
+    shard_id = 0
+
+    _write_sft_shard(tokens_dir, "train", shard_prefix, shard_id, tokens, response_start)
+    _write_sft_shard(tokens_dir, "val", shard_prefix, shard_id, tokens, response_start)
+
+    # Sanity check: files exist (helps debugging naming/glob mismatches)
+    train_bins = sorted(tokens_dir.glob("train_{0}_*.bin".format(shard_prefix)))
+    val_bins = sorted(tokens_dir.glob("val_{0}_*.bin".format(shard_prefix)))
+    assert len(train_bins) == 1, "Expected 1 train shard, found: {0}".format([p.name for p in tokens_dir.glob("*")])
+    assert len(val_bins) == 1, "Expected 1 val shard, found: {0}".format([p.name for p in tokens_dir.glob("*")])
+
+    ds = SFTTokenDataset(tokens_dir=str(tokens_dir), shard_prefix=shard_prefix, block_size=block_size)
+
+    x, y, m = ds.get_batch("train", batch_size=1, device=torch.device("cpu"))
+
+    assert x.shape == (1, block_size)
+    assert y.shape == (1, block_size)
+    assert m.shape == (1, block_size)
+
+    # For start=0, y corresponds to original doc indices 1..8.
+    # resp_start=5 => mask True for indices >=5 => 5,6,7,8 => last 4 positions.
+    expected = torch.tensor([[0, 0, 0, 0, 1, 1, 1, 1]], dtype=torch.bool)
+    assert torch.equal(m, expected)
