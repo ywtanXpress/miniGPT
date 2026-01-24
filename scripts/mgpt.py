@@ -10,6 +10,7 @@ from minigpt.train.pretrain import pretrain
 from minigpt.train.sample import sample_text
 from minigpt.sft.build import build_sft_tokens
 from minigpt.sft.train import sft_train
+from minigpt.sft.sample import sft_sample
 
 app = typer.Typer(help="miniGPT CLI")
 
@@ -87,6 +88,27 @@ def sft_train_cmd(
 ):
     sft_train(config_path=config, resume=bool(resume), ckpt_path=ckpt)
 
+
+@sft_app.command("sample")
+def sft_sample_cmd(
+    config: str = typer.Option(..., help="Path to YAML config"),
+    instruction: str = typer.Option(..., help="Instruction text"),
+    inp: str = typer.Option(None, help="Optional input/context"),
+    ckpt: str = typer.Option(None, help="Checkpoint path (default: latest in out_dir)"),
+    max_new_tokens: int = typer.Option(200),
+    temperature: float = typer.Option(0.8),
+    top_k: int = typer.Option(50),
+):
+    text = sft_sample(
+        config_path=config,
+        instruction=instruction,
+        inp=inp,
+        ckpt_path=ckpt,
+        max_new_tokens=int(max_new_tokens),
+        temperature=float(temperature),
+        top_k=int(top_k) if top_k is not None else None,
+    )
+    print(text)
 
 
 if __name__ == "__main__":

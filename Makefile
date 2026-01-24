@@ -41,3 +41,8 @@ sft_train:
 
 sft_resume:
 	python scripts/mgpt.py sft train --config configs/sft.yaml --resume
+
+INSTR ?= Explain what a transformer is.
+
+sft_sample:
+	python scripts/mgpt.py sft sample --config configs/sft.yaml --instruction "$(INSTR)"
