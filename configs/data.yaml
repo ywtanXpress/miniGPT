@@ -5,10 +5,10 @@ seed: 1337
 
 # How many total examples to write (across all sources).
 # Keep small for laptop. You can scale later.
-max_examples_total: 50000
+max_examples_total: 200000
 
 # Sharding controls
-shard_size: 5000
+shard_size: 10000
 
 # Filtering controls
 filters:
@@ -36,7 +36,7 @@ sources:
     subset: "wikitext-103-raw-v1"
     split: "train"
     text_field: "text"
-    weight: 0.6
+    weight: 0.5
 
   - name: "ag_news"
     kind: "hf"
@@ -44,7 +44,15 @@ sources:
     subset: null
     split: "train"
     text_field: "text"
-    weight: 0.4
+    weight: 0.25
+  
+  - name: "openwebtext"
+    kind: "hf"
+    dataset: "openwebtext"
+    subset: null
+    split: "train"
+    text_field: "text"
+    weight: 0.25
 
 # Optional: additional local sources (folder of .txt/.md)
 # local_sources:

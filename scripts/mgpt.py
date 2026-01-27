@@ -60,8 +60,8 @@ def train_sample(
     prompt: str = typer.Option(..., help="Prompt text"),
     ckpt: str = typer.Option(None, help="Checkpoint path (defaults to latest in out_dir)"),
     max_new_tokens: int = typer.Option(200, help="Number of tokens to generate"),
-    temperature: float = typer.Option(1.0, help="Sampling temperature"),
-    top_k: int = typer.Option(50, help="Top-k sampling (set 0 to disable)"),
+    temperature: float = typer.Option(0.8, help="Sampling temperature"),
+    top_k: int = typer.Option(40, help="Top-k sampling (set 0 to disable)"),
 ):
     tk = None if top_k == 0 else int(top_k)
     text = sample_text(
@@ -97,7 +97,7 @@ def sft_sample_cmd(
     ckpt: str = typer.Option(None, help="Checkpoint path (default: latest in out_dir)"),
     max_new_tokens: int = typer.Option(200),
     temperature: float = typer.Option(0.8),
-    top_k: int = typer.Option(50),
+    top_k: int = typer.Option(40),
 ):
     text = sft_sample(
         config_path=config,
