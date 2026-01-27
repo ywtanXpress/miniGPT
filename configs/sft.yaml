@@ -46,6 +46,7 @@ train:
   grad_accum: 4
   batch_size: 16
   lr: 2.0e-4
+  min_lr: 2.0e-5
   weight_decay: 0.1
   warmup_steps: 100
   max_grad_norm: 1.0

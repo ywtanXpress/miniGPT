@@ -59,6 +59,7 @@ def pretrain(config_path: str, resume: bool = False, ckpt_path: Optional[str] = 
     max_steps = int(train_cfg["max_steps"])
     grad_accum = int(train_cfg.get("grad_accum", 1))
     base_lr = float(train_cfg["lr"])
+    min_lr = float(train_cfg.get("min_lr", 0.0))
     weight_decay = float(train_cfg.get("weight_decay", 0.0))
     warmup_steps = int(train_cfg.get("warmup_steps", 0))
     max_grad_norm = float(train_cfg.get("max_grad_norm", 1.0))
@@ -132,7 +133,7 @@ def pretrain(config_path: str, resume: bool = False, ckpt_path: Optional[str] = 
     running = 0.0
 
     for step in range(start_step, max_steps):
-        lr = get_lr(step, base_lr, warmup_steps, max_steps)
+        lr = get_lr(step, base_lr, warmup_steps, max_steps, min_lr)
         set_optimizer_lr(opt, lr)
 
         opt.zero_grad(set_to_none=True)
