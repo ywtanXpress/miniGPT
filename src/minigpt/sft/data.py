@@ -1,11 +1,11 @@
-# sec/minigpt/sft/data.py
+# src/minigpt/sft/data.py
 
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 import numpy as np
 import torch
@@ -18,6 +18,7 @@ class Shard:
     num_tokens: int
     doc_starts: List[int]
     response_starts: List[int]
+    doc_lens: List[int]
     mm: np.memmap
     eligible_docs: List[int]
 
@@ -27,22 +28,44 @@ def _load_idx(idx_path: Path) -> dict:
         return json.load(f)
 
 
-def _build_eligible_docs(doc_starts: List[int], num_tokens: int, block_size: int) -> List[int]:
-    out = []
-    n = len(doc_starts)
-    for i in range(n):
-        s = doc_starts[i]
-        e = doc_starts[i + 1] if i + 1 < n else num_tokens
-        if (e - s) >= (block_size + 1):
+def _build_eligible_docs(
+    doc_starts: List[int],
+    response_starts: List[int],
+    doc_lens: List[int],
+    block_size: int,
+    min_resp_tokens: int,
+) -> List[int]:
+    """
+    Each stored doc is (block_size+1) tokens on disk (padded/truncated), but we also
+    store doc_lens = real length before padding (<= block_size+1).
+
+    We consider a doc eligible if, within the window, there are at least min_resp_tokens
+    response targets that are also within the real (unpadded) region.
+    """
+    out: List[int] = []
+    for i in range(len(doc_starts)):
+        s = int(doc_starts[i])
+        resp = int(response_starts[i])
+        real_len = int(doc_lens[i])  # number of real tokens in this doc, incl prompt+resp_prefix
+        # y positions correspond to token indices [s+1, s+block_size] inclusive range length block_size
+        # valid y indices must be < s+real_len
+        y_first = s + 1
+        y_last_excl = s + min(block_size + 1, real_len)  # exclusive upper bound for y indices
+
+        # response-supervised y indices are [max(resp, y_first), y_last_excl)
+        supervised = max(resp, y_first)
+        n_supervised = max(0, y_last_excl - supervised)
+        if n_supervised >= int(min_resp_tokens):
             out.append(i)
     return out
 
 
 class SFTTokenDataset:
-    def __init__(self, tokens_dir: str, shard_prefix: str, block_size: int):
+    def __init__(self, tokens_dir: str, shard_prefix: str, block_size: int, min_resp_tokens: int = 16):
         self.tokens_dir = Path(tokens_dir)
         self.shard_prefix = shard_prefix
         self.block_size = int(block_size)
+        self.min_resp_tokens = int(min_resp_tokens)
 
         self.train_shards: List[Shard] = []
         self.val_shards: List[Shard] = []
@@ -67,12 +90,22 @@ class SFTTokenDataset:
         num_tokens = int(info["num_tokens"])
         doc_starts = list(info["doc_starts"])
         response_starts = list(info["response_starts"])
+        doc_lens = list(info.get("doc_lens", []))
 
         if len(doc_starts) != len(response_starts):
             raise RuntimeError(f"doc_starts/response_starts length mismatch: {idx_path}")
+        if len(doc_lens) != len(doc_starts):
+            raise RuntimeError(f"doc_lens missing or length mismatch: {idx_path}")
 
         mm = np.memmap(bin_path, dtype=np.uint32, mode="r", shape=(num_tokens,))
-        eligible = _build_eligible_docs(doc_starts, num_tokens, self.block_size)
+
+        eligible = _build_eligible_docs(
+            doc_starts=doc_starts,
+            response_starts=response_starts,
+            doc_lens=doc_lens,
+            block_size=self.block_size,
+            min_resp_tokens=self.min_resp_tokens,
+        )
         if not eligible:
             raise RuntimeError(f"No eligible docs in shard {bin_path.name}")
 
@@ -82,6 +115,7 @@ class SFTTokenDataset:
             num_tokens=num_tokens,
             doc_starts=doc_starts,
             response_starts=response_starts,
+            doc_lens=doc_lens,
             mm=mm,
             eligible_docs=eligible,
         )
@@ -91,28 +125,28 @@ class SFTTokenDataset:
         ys = []
         loss_masks = []
 
+        # IMPORTANT: Always sample from the start of the doc (doc_start).
         for _ in range(batch_size):
             shard = shards[np.random.randint(0, len(shards))]
             di = shard.eligible_docs[np.random.randint(0, len(shard.eligible_docs))]
 
-            s = shard.doc_starts[di]
-            e = shard.doc_starts[di + 1] if (di + 1) < len(shard.doc_starts) else shard.num_tokens
-            doc_len = e - s
+            s = int(shard.doc_starts[di])
+            resp_start = int(shard.response_starts[di])
+            real_len = int(shard.doc_lens[di])
 
-            resp_start = shard.response_starts[di]
-
-            off = np.random.randint(0, doc_len - (self.block_size + 1) + 1)
-            start = s + int(off)
-
-            seq = np.array(shard.mm[start : start + self.block_size + 1], dtype=np.int64)
+            # We stored docs as fixed length (block_size+1). Always take the prefix window.
+            seq = np.array(shard.mm[s : s + self.block_size + 1], dtype=np.int64)
             x = torch.from_numpy(seq[:-1])
             y = torch.from_numpy(seq[1:])
 
             # loss mask applies to y positions
-            # y[t] corresponds to original token index (start + t + 1)
-            base = start + 1
+            # y[t] corresponds to original token index (s + t + 1)
+            base = s + 1
             idxs = torch.arange(0, self.block_size, dtype=torch.long) + base
-            lm = (idxs >= int(resp_start)).to(torch.bool)
+
+            # mask: (a) only response tokens (>= resp_start) AND (b) only real (unpadded) region
+            valid = idxs < (s + real_len)
+            lm = (idxs >= resp_start) & valid
 
             xs.append(x)
             ys.append(y)

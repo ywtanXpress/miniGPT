@@ -72,6 +72,8 @@ def sft_train(config_path: str, resume: bool = False, ckpt_path: Optional[str] =
     sft_tokens_dir = paths["sft_tokens_dir"]
     init_ckpt_cfg = paths.get("init_ckpt", None)
 
+    min_resp_tokens = int(cfg.get("data", {}).get("min_resp_tokens", 16))
+
     block_size = int(cfg["tokenization"]["block_size"])
 
     train_cfg = cfg["train"]
@@ -129,7 +131,12 @@ def sft_train(config_path: str, resume: bool = False, ckpt_path: Optional[str] =
     model = GPT(gcfg).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=base_lr, weight_decay=weight_decay, betas=(0.9, 0.95))
 
-    ds = SFTTokenDataset(tokens_dir=sft_tokens_dir, shard_prefix=cfg["data"]["shard_prefix"], block_size=block_size)
+    ds = SFTTokenDataset(
+        tokens_dir=sft_tokens_dir,
+        shard_prefix=cfg["data"]["shard_prefix"],
+        block_size=block_size,
+        min_resp_tokens=min_resp_tokens,
+    )
 
     scaler = torch.cuda.amp.GradScaler(enabled=(use_amp and amp_dtype == torch.float16))
 
