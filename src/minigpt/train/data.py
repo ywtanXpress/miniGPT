@@ -10,6 +10,11 @@ from typing import List, Tuple
 import numpy as np
 import torch
 
+from minigpt.common.logging import get_logger
+
+
+log = get_logger("minigpt.train.data")
+
 
 @dataclass
 class Shard:
@@ -69,6 +74,21 @@ class TokenShardDataset:
 
         self.train_shards = [self._load_one(bp, ip) for (bp, ip) in train_pairs]
         self.val_shards = [self._load_one(bp, ip) for (bp, ip) in val_pairs]
+        self._log_split_stats("train", self.train_shards)
+        self._log_split_stats("val", self.val_shards)
+
+    def _log_split_stats(self, split: str, shards: List[Shard]) -> None:
+        total_docs = sum(len(s.doc_starts) for s in shards)
+        eligible_docs = sum(len(s.eligible_docs) for s in shards)
+        dropped_docs = total_docs - eligible_docs
+        log.info(
+            "%s split: shards=%d docs=%d eligible=%d dropped_short=%d",
+            split,
+            len(shards),
+            total_docs,
+            eligible_docs,
+            dropped_docs,
+        )
 
     def _load_one(self, bin_path: Path, idx_path: Path) -> Shard:
         info = _load_idx(idx_path)

@@ -52,6 +52,7 @@ def encode_corpus(config_path: str) -> None:
 
         token_ids = array("I")
         doc_starts = []
+        doc_token_lens = []
         n_docs = 0
 
         for rec in iter_jsonl(fp):
@@ -62,6 +63,7 @@ def encode_corpus(config_path: str) -> None:
             doc_starts.append(len(token_ids))
             ids = tok.encode(text).ids
             ids.append(int(eos_id))
+            doc_token_lens.append(len(ids))
             token_ids.extend(ids)
             n_docs += 1
 
@@ -80,4 +82,16 @@ def encode_corpus(config_path: str) -> None:
                 ensure_ascii=False,
             )
 
-        log.info("Encoded %s -> %s (%d docs, %d tokens)", fp.name, bin_path.name, n_docs, len(token_ids))
+        avg_doc_tokens = (sum(doc_token_lens) / float(len(doc_token_lens))) if doc_token_lens else 0.0
+        max_doc_tokens = max(doc_token_lens) if doc_token_lens else 0
+        min_doc_tokens = min(doc_token_lens) if doc_token_lens else 0
+        log.info(
+            "Encoded %s -> %s (%d docs, %d tokens, avg_doc_tokens=%.1f, min=%d, max=%d)",
+            fp.name,
+            bin_path.name,
+            n_docs,
+            len(token_ids),
+            avg_doc_tokens,
+            min_doc_tokens,
+            max_doc_tokens,
+        )
