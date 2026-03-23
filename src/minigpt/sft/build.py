@@ -66,6 +66,39 @@ def _format_example(
     return prompt, response
 
 
+def _build_sequence(
+    prompt_ids: List[int],
+    resp_ids: List[int],
+    seq_len: int,
+    min_resp_tokens: int,
+    eos_id: int,
+    pad_id: int,
+) -> Optional[Tuple[List[int], int, bool]]:
+    if not prompt_ids or not resp_ids:
+        return None
+
+    available = seq_len - len(prompt_ids)
+    if available < min_resp_tokens:
+        return None
+
+    full_resp_len = len(resp_ids) + 1  # + EOS
+    if full_resp_len <= available:
+        seq = prompt_ids + resp_ids + [int(eos_id)]
+        added_eos = True
+    else:
+        resp_keep = min(len(resp_ids), available)
+        if resp_keep < min_resp_tokens:
+            return None
+        seq = prompt_ids + resp_ids[:resp_keep]
+        added_eos = False
+
+    real_len = len(seq)
+    if real_len < seq_len:
+        seq = seq + [int(pad_id)] * (seq_len - real_len)
+
+    return seq, real_len, added_eos
+
+
 def build_sft_tokens(config_path: str) -> None:
     cfg = _load_cfg(config_path)
 
@@ -106,6 +139,9 @@ def build_sft_tokens(config_path: str) -> None:
     pad_id = tok.token_to_id("<|pad|>")
     if pad_id is None:
         raise RuntimeError("Tokenizer missing <|pad|> token; cannot pad SFT sequences")
+    eos_id = tok.token_to_id("<|eos|>")
+    if eos_id is None:
+        raise RuntimeError("Tokenizer missing <|eos|> token; cannot terminate SFT responses")
 
     log.info("Loading dataset: %s split=%s", ds_name, split)
     ds = load_dataset(ds_name, subset, split=split)
@@ -117,7 +153,14 @@ def build_sft_tokens(config_path: str) -> None:
     val_ids = indices[:n_val]
     train_ids = indices[n_val:]
 
-    def _iter_rows(idxs):
+    total_budget = min(max_total, len(indices))
+    n_val_target = min(len(val_ids), max(1, int(total_budget * val_ratio)))
+    n_train_target = min(len(train_ids), max(0, total_budget - n_val_target))
+
+    def _iter_rows(idxs, limit: int):
+        if limit <= 0:
+            return
+
         n = 0
         for i in idxs:
             r = ds[int(i)]
@@ -131,7 +174,7 @@ def build_sft_tokens(config_path: str) -> None:
                 continue
             yield instruction, inp, output
             n += 1
-            if n >= max_total:
+            if n >= limit:
                 break
 
     def _build_split(split_name: str, rows_iter):
@@ -144,6 +187,8 @@ def build_sft_tokens(config_path: str) -> None:
         docs_in_shard = 0
         num_written = 0
         num_skipped = 0
+        num_with_eos = 0
+        num_truncated = 0
 
         def _flush():
             nonlocal shard_idx, docs_in_shard, tokens_all, doc_starts, response_starts, doc_lens
@@ -186,31 +231,19 @@ def build_sft_tokens(config_path: str) -> None:
             prompt_ids = tok.encode(prompt).ids
             resp_ids = tok.encode(response).ids
 
-            if not prompt_ids or not resp_ids:
+            built = _build_sequence(
+                prompt_ids=prompt_ids,
+                resp_ids=resp_ids,
+                seq_len=seq_len,
+                min_resp_tokens=min_resp_tokens,
+                eos_id=int(eos_id),
+                pad_id=int(pad_id),
+            )
+            if built is None:
                 num_skipped += 1
                 continue
 
-            # We require the prompt to leave room for at least min_resp_tokens in-window.
-            max_resp_in_window = seq_len - len(prompt_ids)
-            if max_resp_in_window < min_resp_tokens:
-                num_skipped += 1
-                continue
-
-            resp_keep = min(len(resp_ids), max_resp_in_window)
-            if resp_keep < min_resp_tokens:
-                num_skipped += 1
-                continue
-
-            seq = prompt_ids + resp_ids[:resp_keep]
-            real_len = len(seq)
-
-            # Pad to fixed length (seq_len) so training always uses start-of-doc windows.
-            if real_len < seq_len:
-                seq = seq + [int(pad_id)] * (seq_len - real_len)
-            else:
-                # Should never exceed seq_len due to resp_keep, but keep it safe.
-                seq = seq[:seq_len]
-                real_len = min(real_len, seq_len)
+            seq, real_len, added_eos = built
 
             doc_start = len(tokens_all)
             response_start = doc_start + len(prompt_ids)
@@ -223,21 +256,27 @@ def build_sft_tokens(config_path: str) -> None:
 
             docs_in_shard += 1
             num_written += 1
+            if added_eos:
+                num_with_eos += 1
+            else:
+                num_truncated += 1
 
             if docs_in_shard >= shard_size:
                 _flush()
 
         _flush()
         log.info(
-            "%s done: wrote=%d skipped=%d (prompt too long / too few resp tokens / empty)",
+            "%s done: wrote=%d skipped=%d with_eos=%d truncated_without_eos=%d",
             split_name,
             num_written,
             num_skipped,
+            num_with_eos,
+            num_truncated,
         )
         return num_written
 
-    n_train = _build_split("train", _iter_rows(train_ids))
-    n_val_written = _build_split("val", _iter_rows(val_ids))
+    n_train = _build_split("train", _iter_rows(train_ids, n_train_target))
+    n_val_written = _build_split("val", _iter_rows(val_ids, n_val_target))
 
     log.info(
         "Done. train_docs=%d val_docs=%d out_dir=%s",

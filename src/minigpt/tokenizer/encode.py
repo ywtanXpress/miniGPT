@@ -37,6 +37,9 @@ def encode_corpus(config_path: str) -> None:
 
     tok_path = Path(tok_dir) / "tokenizer.json"
     tok = Tokenizer.from_file(str(tok_path))
+    eos_id = tok.token_to_id("<|eos|>")
+    if eos_id is None:
+        raise RuntimeError("Tokenizer missing <|eos|> token; cannot append document boundaries")
 
     in_path = Path(input_dir)
     files = sorted(in_path.glob("*.jsonl"))
@@ -58,6 +61,7 @@ def encode_corpus(config_path: str) -> None:
 
             doc_starts.append(len(token_ids))
             ids = tok.encode(text).ids
+            ids.append(int(eos_id))
             token_ids.extend(ids)
             n_docs += 1
 

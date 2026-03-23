@@ -146,7 +146,14 @@ class GPT(nn.Module):
         return logits, loss
 
     @torch.no_grad()
-    def generate(self, idx: torch.Tensor, max_new_tokens: int, temperature: float = 1.0, top_k: int | None = None):
+    def generate(
+        self,
+        idx: torch.Tensor,
+        max_new_tokens: int,
+        temperature: float = 1.0,
+        top_k: int | None = None,
+        eos_token_id: int | None = None,
+    ):
         self.eval()
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -self.cfg.block_size:]
@@ -160,4 +167,6 @@ class GPT(nn.Module):
             probs = F.softmax(logits, dim=-1)
             next_id = torch.multinomial(probs, num_samples=1)
             idx = torch.cat((idx, next_id), dim=1)
+            if eos_token_id is not None and torch.all(next_id == eos_token_id):
+                break
         return idx

@@ -84,6 +84,7 @@ def sft_sample(
     tok_path = Path(tok_dir) / "tokenizer.json"
     tok = Tokenizer.from_file(str(tok_path))
     vocab_size = int(tok.get_vocab_size())
+    eos_id = tok.token_to_id("<|eos|>")
 
     block_size = int(cfg["tokenization"]["block_size"])
 
@@ -115,9 +116,21 @@ def sft_sample(
 
     if use_amp and device.type == "cuda":
         with torch.autocast(device_type="cuda", dtype=amp_dtype):
-            out = model.generate(x, max_new_tokens=max_new_tokens, temperature=temperature, top_k=top_k)
+            out = model.generate(
+                x,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_k=top_k,
+                eos_token_id=eos_id,
+            )
     else:
-        out = model.generate(x, max_new_tokens=max_new_tokens, temperature=temperature, top_k=top_k)
+        out = model.generate(
+            x,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_k=top_k,
+            eos_token_id=eos_id,
+        )
 
     out_ids = out[0].tolist()
     return tok.decode(out_ids)
