@@ -11,7 +11,7 @@ from datasets import load_dataset
 @dataclass(frozen=True)
 class SourceSpec:
     name: str
-    kind: str  # "hf" (for now)
+    kind: str  # "hf" only for now
     dataset: str
     subset: Optional[str]
     split: str
@@ -20,10 +20,16 @@ class SourceSpec:
 
 
 def stream_hf_text(spec: SourceSpec) -> Iterator[dict]:
+    if spec.kind != "hf":
+        raise ValueError(f"Unsupported source kind={spec.kind!r}; only 'hf' is implemented")
+
     ds = load_dataset(spec.dataset, spec.subset, split=spec.split, streaming=True)
     for ex in ds:
         text = ex.get(spec.text_field, None)
-        if text is None:
+        if not isinstance(text, str):
+            continue
+        text = text.strip()
+        if not text:
             continue
         yield {
             "text": text,

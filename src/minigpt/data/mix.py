@@ -15,6 +15,9 @@ class MixedStream:
     seed: int = 1337
 
     def __iter__(self) -> Iterator[dict]:
+        if not self.specs:
+            raise ValueError("MixedStream requires at least one source spec")
+
         rng = random.Random(self.seed)
 
         # Build iterators per source
@@ -22,6 +25,8 @@ class MixedStream:
 
         # Normalize weights
         total_w = sum(max(0.0, s.weight) for s, _ in iters)
+        if total_w <= 0.0:
+            raise ValueError("MixedStream requires at least one source with positive weight")
         probs = [max(0.0, s.weight) / total_w for s, _ in iters]
 
         # Weighted sampling with replacement among sources;

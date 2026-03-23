@@ -27,8 +27,8 @@ dedupe:
     hamming_threshold: 4
 
 # Mixture / balancing
-# We’ll stream from Hugging Face datasets to avoid manual crawling.
-# You can add your own local text files later.
+# Step 1 intentionally supports Hugging Face datasets only for now.
+# Keep the scope narrow while the rest of the pipeline is being validated.
 sources:
   - name: "wikitext"
     kind: "hf"
@@ -53,9 +53,3 @@ sources:
     split: "train"
     text_field: "text"
     weight: 0.25
-
-# Optional: additional local sources (folder of .txt/.md)
-# local_sources:
-#   - name: "my_notes"
-#     path: "data/raw/my_notes"
-#     weight: 0.10

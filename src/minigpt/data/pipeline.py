@@ -40,12 +40,18 @@ def load_config(path: str) -> PipelineConfig:
     simhash = dedupe.get("simhash", {})
 
     sources_cfg = cfg["sources"]
+    if not sources_cfg:
+        raise ValueError("data pipeline config must include at least one source")
+
     sources: list[SourceSpec] = []
     for s in sources_cfg:
+        kind = str(s["kind"])
+        if kind != "hf":
+            raise ValueError(f"Unsupported source kind={kind!r}; Step 1 currently supports only 'hf'")
         sources.append(
             SourceSpec(
                 name=s["name"],
-                kind=s["kind"],
+                kind=kind,
                 dataset=s["dataset"],
                 subset=s.get("subset", None),
                 split=s["split"],

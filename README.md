@@ -20,7 +20,7 @@ At its current stage, **miniGPT** implements the following components end-to-end
 - Sharding into JSONL files for downstream processing
 - Summary statistics and reproducible configuration via YAML
 
-This stage mirrors internet-scale preprocessing logic in a laptop-friendly form.
+This stage mirrors internet-scale preprocessing logic in a laptop-friendly form. Step 1 is intentionally limited to Hugging Face sources for now.
 
 ### 2. Tokenization
 - Byte-level BPE tokenizer training (GPT-style)
