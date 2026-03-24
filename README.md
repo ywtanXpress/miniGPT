@@ -122,6 +122,13 @@ Fine-tune the pretrained model on instruction–response data:
 make sft_train
 ```
 
+Run lightweight evaluation reports:
+
+```bash
+make eval_pretrain
+make eval_sft
+```
+
 Run the test suite:
 
 ```bash
@@ -133,7 +140,6 @@ make test
 The repository will be extended to cover the full LLM development lifecycle, including:
 
 - Preference optimization (RLHF, DPO, ORPO)
-- Evaluation and benchmarking
 - Safety alignment and red-teaming
 - Retrieval-augmented generation (RAG)
 - Tool-using agents

@@ -46,3 +46,9 @@ INSTR ?= Explain what a transformer is.
 
 sft_sample:
 	python scripts/mgpt.py sft sample --config configs/sft.yaml --instruction "$(INSTR)"
+
+eval_pretrain:
+	python scripts/mgpt.py eval pretrain --config configs/eval.yaml
+
+eval_sft:
+	python scripts/mgpt.py eval sft --config configs/eval.yaml

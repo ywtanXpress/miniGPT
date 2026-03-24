@@ -1,0 +1,26 @@
+paths:
+  out_dir: "artifacts/eval"
+
+pretrain:
+  train_config: "configs/train.yaml"
+  ckpt: null
+  eval_batches: 20
+  max_new_tokens: 120
+  temperature: 0.3
+  top_k: 20
+  prompts:
+    - "Explain what a transformer is."
+    - "Write a short paragraph about the moon."
+    - "What is gradient descent?"
+
+sft:
+  sft_config: "configs/sft.yaml"
+  ckpt: null
+  eval_batches: 20
+  max_new_tokens: 120
+  temperature: 0.3
+  top_k: 20
+  instructions:
+    - instruction: "Explain what a transformer is."
+    - instruction: "Summarize why data deduplication matters for language model training."
+    - instruction: "Write a short haiku about debugging."
