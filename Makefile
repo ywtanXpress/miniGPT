@@ -52,3 +52,15 @@ eval_pretrain:
 
 eval_sft:
 	python scripts/mgpt.py eval sft --config configs/eval.yaml
+
+dpo_data:
+	python scripts/mgpt.py dpo build --config configs/dpo.yaml
+
+dpo_train:
+	python scripts/mgpt.py dpo train --config configs/dpo.yaml
+
+dpo_resume:
+	python scripts/mgpt.py dpo train --config configs/dpo.yaml --resume
+
+dpo_sample:
+	python scripts/mgpt.py dpo sample --config configs/dpo.yaml --instruction "$(INSTR)"

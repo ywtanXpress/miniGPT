@@ -1,0 +1,60 @@
+seed: 1337
+
+paths:
+  tokenizer_dir: "artifacts/tokenizer/step2_bpe"
+  preference_dir: "data/processed/step5_dpo_pairs"
+  out_dir: "artifacts/dpo/step5_dpo"
+  init_ckpt: "artifacts/sft/step4_sft"
+  reference_ckpt: null
+
+data:
+  shard_prefix: "dpo"
+  shard_size: 5000
+  max_examples_total: 20000
+  val_ratio: 0.1
+  min_resp_tokens: 16
+
+  template:
+    system: ""
+    user_prefix: "### Instruction:\n"
+    assistant_prefix: "\n\n### Response:\n"
+    end: "\n"
+
+  source:
+    # Choose either:
+    # kind: "jsonl" with a local file containing instruction/input/chosen/rejected fields
+    # kind: "hf" with a dataset exposing the same fields
+    kind: "jsonl"
+    path: "data/raw/step5_preferences.jsonl"
+    instruction_field: "instruction"
+    input_field: "input"
+    chosen_field: "chosen"
+    rejected_field: "rejected"
+
+tokenization:
+  block_size: 256
+
+model:
+  n_layer: 4
+  n_head: 4
+  n_embd: 256
+  dropout: 0.0
+
+train:
+  max_steps: 100
+  grad_accum: 4
+  batch_size: 4
+  lr: 5.0e-6
+  min_lr: 5.0e-7
+  weight_decay: 0.0
+  warmup_steps: 10
+  max_grad_norm: 1.0
+  beta: 0.05
+
+  eval_interval: 25
+  eval_batches: 20
+  save_interval: 50
+  log_interval: 10
+
+  device: "auto"
+  dtype: "auto"

@@ -12,6 +12,9 @@ from minigpt.sft.build import build_sft_tokens
 from minigpt.sft.train import sft_train
 from minigpt.sft.sample import sft_sample
 from minigpt.eval.run import run_pretrain_eval, run_sft_eval
+from minigpt.dpo.build import build_dpo_pairs
+from minigpt.dpo.train import dpo_train
+from minigpt.dpo.sample import dpo_sample
 
 app = typer.Typer(help="miniGPT CLI")
 
@@ -20,12 +23,14 @@ tokenizer_app = typer.Typer(help="Tokenizer commands")
 train_app = typer.Typer(help="Training commands")
 sft_app = typer.Typer(help="Supervised fine-tuning (SFT) commands")
 eval_app = typer.Typer(help="Evaluation commands")
+dpo_app = typer.Typer(help="Preference optimization (DPO) commands")
 
 app.add_typer(data_app, name="data")
 app.add_typer(tokenizer_app, name="tokenizer")
 app.add_typer(train_app, name="train")
 app.add_typer(sft_app, name="sft")
 app.add_typer(eval_app, name="eval")
+app.add_typer(dpo_app, name="dpo")
 
 
 @data_app.command("build")
@@ -124,6 +129,42 @@ def eval_pretrain_cmd(config: str = typer.Option(..., help="Path to eval YAML co
 def eval_sft_cmd(config: str = typer.Option(..., help="Path to eval YAML config")):
     out = run_sft_eval(config_path=config)
     print(out)
+
+
+@dpo_app.command("build")
+def dpo_build_cmd(config: str = typer.Option(..., help="Path to DPO YAML config")):
+    build_dpo_pairs(config_path=config)
+
+
+@dpo_app.command("train")
+def dpo_train_cmd(
+    config: str = typer.Option(..., help="Path to DPO YAML config"),
+    resume: bool = typer.Option(False, help="Resume from latest checkpoint in out_dir"),
+    ckpt: str = typer.Option(None, help="Checkpoint path to resume from"),
+):
+    dpo_train(config_path=config, resume=bool(resume), ckpt_path=ckpt)
+
+
+@dpo_app.command("sample")
+def dpo_sample_cmd(
+    config: str = typer.Option(..., help="Path to DPO YAML config"),
+    instruction: str = typer.Option(..., help="Instruction text"),
+    inp: str = typer.Option(None, help="Optional input/context"),
+    ckpt: str = typer.Option(None, help="Checkpoint path (default: latest in out_dir)"),
+    max_new_tokens: int = typer.Option(200),
+    temperature: float = typer.Option(0.8),
+    top_k: int = typer.Option(40),
+):
+    text = dpo_sample(
+        config_path=config,
+        instruction=instruction,
+        inp=inp,
+        ckpt_path=ckpt,
+        max_new_tokens=int(max_new_tokens),
+        temperature=float(temperature),
+        top_k=int(top_k) if top_k is not None else None,
+    )
+    print(text)
 
 
 if __name__ == "__main__":

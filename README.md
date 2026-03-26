@@ -50,6 +50,15 @@ This stage trains the model to learn general language structure and fluency from
 
 SFT adapts the pretrained model for basic instruction-following behavior.
 
+### 5. Preference Optimization (DPO)
+- Preference-pair ingestion from local JSONL or Hugging Face datasets
+- Shared prompt templating with chosen vs rejected responses
+- Fixed-length chosen/rejected sequence construction with response masks
+- Direct Preference Optimization (DPO) against a frozen SFT reference model
+- Separate DPO checkpoints and sampling entry points
+
+This stage aligns the SFT model toward preferred responses without reward-model training.
+
 ---
 
 ## Repository Structure (Partial)
@@ -122,6 +131,12 @@ Fine-tune the pretrained model on instruction–response data:
 make sft_train
 ```
 
+Build DPO preference pairs and run preference optimization:
+```bash
+make dpo_data
+make dpo_train
+```
+
 Run lightweight evaluation reports:
 
 ```bash
@@ -139,7 +154,6 @@ make test
 
 The repository will be extended to cover the full LLM development lifecycle, including:
 
-- Preference optimization (RLHF, DPO, ORPO)
 - Safety alignment and red-teaming
 - Retrieval-augmented generation (RAG)
 - Tool-using agents
