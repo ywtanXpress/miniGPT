@@ -1,6 +1,7 @@
 # scripts/mgpt.py
 
 import typer
+import json
 
 from minigpt.data.pipeline import build_corpus
 from minigpt.tokenizer.train import train_tokenizer
@@ -15,6 +16,9 @@ from minigpt.eval.run import run_pretrain_eval, run_sft_eval
 from minigpt.dpo.build import build_dpo_pairs
 from minigpt.dpo.train import dpo_train
 from minigpt.dpo.sample import dpo_sample
+from minigpt.rag.build import build_rag_index
+from minigpt.rag.query import rag_query
+from minigpt.rag.retrieve import retrieve_chunks
 
 app = typer.Typer(help="miniGPT CLI")
 
@@ -24,6 +28,7 @@ train_app = typer.Typer(help="Training commands")
 sft_app = typer.Typer(help="Supervised fine-tuning (SFT) commands")
 eval_app = typer.Typer(help="Evaluation commands")
 dpo_app = typer.Typer(help="Preference optimization (DPO) commands")
+rag_app = typer.Typer(help="Retrieval-augmented generation (RAG) commands")
 
 app.add_typer(data_app, name="data")
 app.add_typer(tokenizer_app, name="tokenizer")
@@ -31,6 +36,7 @@ app.add_typer(train_app, name="train")
 app.add_typer(sft_app, name="sft")
 app.add_typer(eval_app, name="eval")
 app.add_typer(dpo_app, name="dpo")
+app.add_typer(rag_app, name="rag")
 
 
 @data_app.command("build")
@@ -165,6 +171,46 @@ def dpo_sample_cmd(
         top_k=int(top_k) if top_k is not None else None,
     )
     print(text)
+
+
+@rag_app.command("build")
+def rag_build_cmd(config: str = typer.Option(..., help="Path to RAG YAML config")):
+    build_rag_index(config_path=config)
+
+
+@rag_app.command("retrieve")
+def rag_retrieve_cmd(
+    config: str = typer.Option(..., help="Path to RAG YAML config"),
+    query: str = typer.Option(..., help="Search query"),
+    top_k: int = typer.Option(None, help="Override retrieval top-k"),
+):
+    results = retrieve_chunks(config_path=config, query=query, top_k=top_k)
+    print(json.dumps(results, ensure_ascii=False, indent=2))
+
+
+@rag_app.command("query")
+def rag_query_cmd(
+    config: str = typer.Option(..., help="Path to RAG YAML config"),
+    question: str = typer.Option(..., help="User question"),
+    retrieval_top_k: int = typer.Option(None, help="Override retrieval top-k"),
+    max_new_tokens: int = typer.Option(None, help="Override generation length"),
+    temperature: float = typer.Option(None, help="Override generation temperature"),
+    top_k: int = typer.Option(None, help="Override generation top-k"),
+):
+    report = rag_query(
+        config_path=config,
+        question=question,
+        retrieval_top_k=retrieval_top_k,
+        max_new_tokens=max_new_tokens,
+        temperature=temperature,
+        top_k=top_k,
+    )
+    print(report["text"])
+    print()
+    print("Retrieved chunks:")
+    print(json.dumps(report["retrieved"], ensure_ascii=False, indent=2))
+    print()
+    print(f"Saved report: {report['report_path']}")
 
 
 if __name__ == "__main__":

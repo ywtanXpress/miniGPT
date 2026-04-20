@@ -5,7 +5,10 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
-data/raw/
+data/raw/*
+!data/raw/step5_preferences.jsonl
+!data/raw/step6_rag_docs/
+!data/raw/step6_rag_docs/**
 data/processed/
 *.log
 .DS_Store

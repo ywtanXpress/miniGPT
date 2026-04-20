@@ -1,0 +1,15 @@
+Evaluation should match the stage of the pipeline you care about.
+For pretraining, common signals include validation loss, perplexity, and short qualitative samples.
+For instruction tuning, it helps to inspect prompt-response behavior and whether the assistant follows formatting correctly.
+
+For RAG, evaluation should separate retrieval quality from generation quality.
+If retrieval fails, the generator may never see the evidence it needs.
+Because of that, it is useful to inspect retrieved chunks directly instead of judging only the final answer.
+
+Simple RAG checks include:
+- whether the top retrieved chunk contains the needed fact
+- whether the answer cites or clearly reflects the retrieved context
+- whether the model abstains when context is missing
+
+A lightweight educational project does not need a massive benchmark at first.
+A small set of hand-written questions with expected source documents can already teach a lot about system behavior.

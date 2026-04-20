@@ -1,0 +1,17 @@
+Data quality strongly affects language model training.
+If the corpus contains spam, corrupted text, or heavy duplication, the model can waste capacity memorizing artifacts instead of learning robust patterns.
+
+Deduplication matters for two reasons.
+First, exact duplicates overrepresent certain documents and skew the training distribution.
+Second, near duplicates can leak repeated phrasing into many shards even when the text is not byte-for-byte identical.
+
+One common strategy is exact deduplication with hashing.
+Another is approximate deduplication with locality-sensitive signatures such as SimHash.
+Approximate methods help catch documents that differ by only a few edits, formatting changes, or repeated boilerplate.
+
+Quality filters are also useful.
+Examples include minimum length, maximum noise ratio, and repeated-line heuristics.
+Those checks are not perfect, but they remove many low-value pages from web-style corpora.
+
+If someone asks why deduplication matters, a concise answer is:
+"Deduplication improves data diversity, reduces overcounting of repeated text, and helps the model generalize better."

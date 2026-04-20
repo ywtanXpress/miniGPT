@@ -64,3 +64,14 @@ dpo_resume:
 
 dpo_sample:
 	python scripts/mgpt.py dpo sample --config configs/dpo.yaml --instruction "$(INSTR)"
+
+rag_build:
+	python scripts/mgpt.py rag build --config configs/rag.yaml
+
+QUERY ?= What is a transformer?
+
+rag_retrieve:
+	python scripts/mgpt.py rag retrieve --config configs/rag.yaml --query "$(QUERY)"
+
+rag_query:
+	python scripts/mgpt.py rag query --config configs/rag.yaml --question "$(QUERY)"

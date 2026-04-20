@@ -59,6 +59,15 @@ SFT adapts the pretrained model for basic instruction-following behavior.
 
 This stage aligns the SFT model toward preferred responses without reward-model training.
 
+### 6. Retrieval-Augmented Generation (RAG)
+- Local document ingestion from a folder of `.txt`/`.md` files or a JSONL corpus
+- Transparent fixed-word chunking with overlap
+- Simple BM25-style lexical retrieval for laptop-scale experimentation
+- Grounded prompting on top of the existing SFT or DPO generator
+- Saved query reports showing retrieved chunks, constructed input, and final output
+
+This stage is intentionally simple and inspectable so the full retrieval-to-generation flow is easy to understand.
+
 ---
 
 ## Repository Structure (Partial)
@@ -74,6 +83,7 @@ src/minigpt/
   model/                 # GPT model definition
   train/                 # Training loops, schedulers, evaluation
   sft/                   # SFT dataset construction and training logic
+  rag/                   # Retrieval, indexing, and grounded query logic
 scripts/
   mgpt.py                # CLI entry point
 tests/                   # Unit and smoke tests
@@ -137,6 +147,16 @@ make dpo_data
 make dpo_train
 ```
 
+Build a small RAG index from local documents:
+
+```bash
+mkdir -p data/raw/step6_rag_docs
+# add a few .txt or .md files under data/raw/step6_rag_docs
+make rag_build
+make rag_retrieve QUERY="What is self-attention?"
+make rag_query QUERY="What is self-attention?"
+```
+
 Run lightweight evaluation reports:
 
 ```bash
@@ -155,7 +175,6 @@ make test
 The repository will be extended to cover the full LLM development lifecycle, including:
 
 - Safety alignment and red-teaming
-- Retrieval-augmented generation (RAG)
 - Tool-using agents
 - Inference and deployment infrastructure
 

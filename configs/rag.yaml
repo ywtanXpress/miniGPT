@@ -1,0 +1,38 @@
+seed: 1337
+
+paths:
+  index_dir: "artifacts/rag/step6_index"
+
+data:
+  source:
+    kind: "local_dir"
+    path: "data/raw/step6_rag_docs"
+    patterns:
+      - "*.txt"
+      - "*.md"
+    recursive: true
+
+  chunking:
+    chunk_size_words: 60
+    chunk_overlap_words: 15
+
+retrieval:
+  top_k: 1
+  k1: 1.5
+  b: 0.75
+
+generator:
+  # Use the instruction-following model as the grounded generator.
+  # Swap to kind: "dpo" and config: "configs/dpo.yaml" after Step 5 if desired.
+  kind: "sft"
+  config: "configs/sft.yaml"
+  ckpt: null
+
+prompt:
+  instruction: "Answer the question using only the retrieved context. If the context is insufficient, say you do not know. Mention chunk ids when you rely on them."
+  context_header: "Retrieved context"
+
+generation:
+  max_new_tokens: 160
+  temperature: 0.3
+  top_k: 20

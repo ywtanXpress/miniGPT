@@ -1,0 +1,20 @@
+Tokenization converts raw text into discrete token ids that a model can process.
+In this repository, the tokenizer is trained before the language model so later stages can reuse a consistent vocabulary.
+
+Byte-level BPE is a practical tokenizer choice because it can represent arbitrary text while still learning common subword units.
+Frequent pieces such as "ing", "tion", or common whole words can become efficient tokens.
+Rare words can still be represented by smaller pieces instead of being dropped.
+
+After tokenization, the corpus is encoded into integer arrays.
+Those arrays are then sliced into fixed-length training examples.
+For autoregressive pretraining, the objective is next-token prediction.
+The input sequence x contains tokens 0 through n-1, and the target sequence y contains tokens 1 through n.
+
+Training usually requires a few additional ideas:
+warmup for learning rate stability,
+cosine decay for smoother optimization,
+gradient accumulation when memory is limited,
+and checkpointing so runs can be resumed.
+
+A small model trained on a laptop will not match frontier systems, but it can still teach the full workflow:
+data processing, tokenization, pretraining, instruction tuning, alignment, evaluation, and inference.
