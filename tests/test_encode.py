@@ -49,7 +49,7 @@ def test_encode_corpus_appends_eos(tmp_path: Path):
     cfg_path.write_text(
         "\n".join(
             [
-                f'seed: 1337',
+                'seed: 1337',
                 f'input_dir: "{input_dir}"',
                 f'output_dir: "{tok_dir}"',
                 "encode:",

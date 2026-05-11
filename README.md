@@ -5,9 +5,6 @@ The goal of the project is to build and understand the full lifecycle of an LLM 
 
 This repository is designed as a hands-on systems project, focusing on clarity and correctness over production scale or benchmarking performance.
 
-
----
-
 ## Current Capabilities
 
 At its current stage, **miniGPT** implements the following components end-to-end:
@@ -68,6 +65,15 @@ This stage aligns the SFT model toward preferred responses without reward-model 
 
 This stage is intentionally simple and inspectable so the full retrieval-to-generation flow is easy to understand.
 
+### 7. Evaluation Reports
+- Pretraining loss, perplexity, and text samples
+- SFT loss and instruction-following samples
+- DPO validation loss against a frozen reference model plus aligned samples
+- RAG query reports with retrieved chunks and generated answers
+- JSON outputs suitable for comparing checkpoints over time
+
+Evaluation reports are written to `artifacts/eval/`.
+
 ---
 
 ## Repository Structure (Partial)
@@ -83,6 +89,8 @@ src/minigpt/
   model/                 # GPT model definition
   train/                 # Training loops, schedulers, evaluation
   sft/                   # SFT dataset construction and training logic
+  dpo/                   # Preference-pair construction and DPO training
+  eval/                  # Lightweight evaluation reports
   rag/                   # Retrieval, indexing, and grounded query logic
 scripts/
   mgpt.py                # CLI entry point
@@ -162,6 +170,8 @@ Run lightweight evaluation reports:
 ```bash
 make eval_pretrain
 make eval_sft
+make eval_dpo
+make eval_rag
 ```
 
 Run the test suite:
@@ -170,12 +180,6 @@ Run the test suite:
 make test
 ```
 
-## Roadmap
+## Notes
 
-The repository will be extended to cover the full LLM development lifecycle, including:
-
-- Safety alignment and red-teaming
-- Tool-using agents
-- Inference and deployment infrastructure
-
-The emphasis remains on correctness, reproducibility, and systems-level understanding rather than scale.
+miniGPT is intentionally small and inspectable. The default configurations are designed for learning and local experimentation rather than production-quality generation or benchmark performance.

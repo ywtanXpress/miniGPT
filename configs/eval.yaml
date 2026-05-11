@@ -24,3 +24,25 @@ sft:
     - instruction: "Explain what a transformer is."
     - instruction: "Summarize why data deduplication matters for language model training."
     - instruction: "Write a short haiku about debugging."
+
+dpo:
+  dpo_config: "configs/dpo.yaml"
+  ckpt: null
+  eval_batches: 20
+  max_new_tokens: 120
+  temperature: 0.3
+  top_k: 20
+  instructions:
+    - instruction: "Explain what a transformer is in one paragraph."
+    - instruction: "Answer briefly: why can preference optimization change style but not add facts?"
+
+rag:
+  rag_config: "configs/rag.yaml"
+  retrieval_top_k: 1
+  max_new_tokens: 120
+  temperature: 0.3
+  top_k: 20
+  queries:
+    - question: "What is self-attention?"
+    - question: "What does DPO optimize?"
+    - question: "When should a RAG system say it does not know?"

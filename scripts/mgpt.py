@@ -12,7 +12,7 @@ from minigpt.train.sample import sample_text
 from minigpt.sft.build import build_sft_tokens
 from minigpt.sft.train import sft_train
 from minigpt.sft.sample import sft_sample
-from minigpt.eval.run import run_pretrain_eval, run_sft_eval
+from minigpt.eval.run import run_dpo_eval, run_pretrain_eval, run_rag_eval, run_sft_eval
 from minigpt.dpo.build import build_dpo_pairs
 from minigpt.dpo.train import dpo_train
 from minigpt.dpo.sample import dpo_sample
@@ -134,6 +134,18 @@ def eval_pretrain_cmd(config: str = typer.Option(..., help="Path to eval YAML co
 @eval_app.command("sft")
 def eval_sft_cmd(config: str = typer.Option(..., help="Path to eval YAML config")):
     out = run_sft_eval(config_path=config)
+    print(out)
+
+
+@eval_app.command("dpo")
+def eval_dpo_cmd(config: str = typer.Option(..., help="Path to eval YAML config")):
+    out = run_dpo_eval(config_path=config)
+    print(out)
+
+
+@eval_app.command("rag")
+def eval_rag_cmd(config: str = typer.Option(..., help="Path to eval YAML config")):
+    out = run_rag_eval(config_path=config)
     print(out)
 
 

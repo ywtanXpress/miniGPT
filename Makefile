@@ -53,6 +53,12 @@ eval_pretrain:
 eval_sft:
 	python scripts/mgpt.py eval sft --config configs/eval.yaml
 
+eval_dpo:
+	python scripts/mgpt.py eval dpo --config configs/eval.yaml
+
+eval_rag:
+	python scripts/mgpt.py eval rag --config configs/eval.yaml
+
 dpo_data:
 	python scripts/mgpt.py dpo build --config configs/dpo.yaml
 
